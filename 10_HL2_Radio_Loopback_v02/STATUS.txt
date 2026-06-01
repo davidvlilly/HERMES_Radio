@@ -1,0 +1,204 @@
+HermesLite 2 — Spectrum Analyser Tool
+STATUS DOCUMENT
+===============================================================================
+Date:  2026-05-31
+Files: hermes_main.py  /  hermes_gui.py
+
+
+WHAT THE TOOL DOES
+------------------
+Connects to the HermesLite 2 (HL2) SDR transceiver over UDP (OpenHPSDR
+Protocol 1), transmits a CW tone at 7.001 MHz, captures 4096 IQ samples from
+the HL2 receive path, computes a Welch-averaged power spectrum (RBW 2.2 kHz),
+and displays the result in a dark-theme GUI window.
+
+The displayed power is calibrated to read true dBm at the RF3 (or ANT) receive
+input, automatically compensating for LNA gain setting.
+
+No power cycle is required between runs.
+
+
+OPERATING MODES  (set by constants at top of hermes_main.py)
+-------------------------------------------------------------
+
+  RF3_LOOPBACK_MODE = True  +  PA_ENABLE = True   ← CURRENT / CONFIRMED WORKING
+  -----------------------------------------------------------------------
+  Physical wiring:  RF1 SMA → 30 dB attenuator → RF3 SMA
+  PTT=1, PA enabled (~1 W at ANT), TX tone on RF1.
+  RF3 injects the attenuated TX signal directly into the RX ADC path,
+  bypassing the TR switch entirely.
+  Signal path: DAC → pre-driver → RF1 → 30 dB atten → RF3 → LNA → ADC → EP6
+  Status: CONFIRMED WORKING — run 1 AND run 2+ without power cycle.
+    - Python spectrum: clean spike at 7.001 MHz, 0 dBm (SA-calibrated)
+    - ANT output: 1 W (0 dBm on SA with 30 dB atten), TX_AMPLITUDE = 0.45
+    - RF3 input: 0 dBm measured directly by SA
+
+
+  RF3_LOOPBACK_MODE = True  +  PA_ENABLE = False
+  -----------------------------------------------
+  Same RF3 loopback but PA disabled — no significant ANT radiation.
+  Pre-driver still active on RF1 (+15 dBm, measured).
+  Use for bench testing without transmitting.
+  Note: pre-driver runs warm at TX_AMPLITUDE = 1.0 continuous — keep sessions short.
+
+
+  RX_TEST_MODE = True
+  --------------------
+  PTT=0 — TR switch routes ANT → LNA → ADC.  DAC muted.
+  Used to verify RX chain with external signal source.
+  Tested with NanoVNA SEESII: PORT1 → 20 dB atten → ANT SMA.
+    NanoVNA: set START = STOP = 7.001 MHz for CW output.
+  Status: CONFIRMED WORKING.  Signal received and displayed correctly.
+
+
+  RF3_LOOPBACK_MODE = False, RX_TEST_MODE = False, PA_ENABLE = True
+  ------------------------------------------------------------------
+  Normal TX mode: PTT=1, PA on, tone radiated from ANT.
+  RX shows noise floor — no internal Pure Signal tap on this board.
+
+
+  LOOPBACK_CABLE_MODE = True  (legacy — do not use)
+  --------------------------------------------------
+  PTT=0 mutes the AD9866 DAC. Non-functional on this hardware.
+
+
+KEY CONFIRMED MEASUREMENTS
+---------------------------
+  RF1 output level    : +15 dBm  (TX_AMPLITUDE=1.0, PA disabled, measured by SA)
+  ANT output at 1 W   : TX_AMPLITUDE = 0.45  (0 dBm on SA with 30 dB atten)
+  RF3 input level     : 0 dBm  (SA direct measurement, RF1→30dB atten→RF3)
+  Python display      : 0 dBm  (after DBFS_REF_BASE = 51.0 calibration)
+  IQ noise floor      : ~−95 dBFS RMS  (no signal)
+  HL2 watchdog        : ~1 s timeout — stops TX automatically if Python killed
+  FPGA reload time    : ~10-15 s  (Protocol 2 reboot → flash reload → network up)
+
+
+POWER CALIBRATION
+------------------
+The display is referred to the receive input (RF3 or ANT) and automatically
+compensates for LNA gain:
+
+  DBFS_REF_BASE = 51.0             (SA-verified, LNA-independent constant)
+  DBFS_REF_DBM  = 51.0 - RX_LNA_GAIN_DB   (computed at startup)
+
+  At RX_LNA_GAIN_DB = 20:  DBFS_REF_DBM = 31  →  display reads 0 dBm at RF3 ✓
+  At RX_LNA_GAIN_DB = 10:  DBFS_REF_DBM = 41  →  display reads 0 dBm at RF3 ✓
+  At RX_LNA_GAIN_DB = 30:  DBFS_REF_DBM = 21  →  display reads 0 dBm at RF3 ✓
+
+  If DBFS_REF_BASE needs re-calibration:
+    1. Connect SA directly to RF3 SMA, note reading (P_sa_dBm)
+    2. Run code and note Python peak reading (P_py_dBm)
+    3. DBFS_REF_BASE = (P_sa_dBm - P_py_dBm) + RX_LNA_GAIN_DB + current DBFS_REF_BASE
+
+
+KEY CONSTANTS  (hermes_main.py)
+--------------------------------
+  NCO_FREQ          = 7,000,000 Hz     LO frequency
+  TONE_OFFSET       = 1,000 Hz         TX tone → RF at 7.001 MHz
+  SAMPLE_RATE       = 384,000 sps      Protocol-1 maximum
+  TX_AMPLITUDE      = 0.45             ~1 W at ANT (PA on)
+  RX_LNA_GAIN_DB    = 20 dB            FAST_LNA mode
+  CAPTURE_SIZE      = 4096 samples     ~10.7 ms
+  CABLE_ATT_DB      = 30 dB            attenuator in RF1→RF3 cable (log only)
+  RF3_LOOPBACK_MODE = True
+  RX_TEST_MODE      = False
+  PA_ENABLE         = True
+  DBFS_REF_BASE     = 51.0             SA-calibrated
+
+
+WHAT WORKS  (all confirmed 2026-05-31)
+---------------------------------------
+  ✅  HL2 discovery, connection, EP6 streaming
+  ✅  TX tone generation — phase-continuous CW at 7.001 MHz
+  ✅  PA output — 1 W at ANT (TX_AMPLITUDE = 0.45)
+  ✅  RF3 loopback — TX signal visible in Python at calibrated 0 dBm
+  ✅  RX chain via ANT port (NanoVNA test)
+  ✅  IQ capture, Welch spectrum, GUI display
+  ✅  Power calibration — display reads true dBm at RF3/ANT input
+  ✅  LNA gain compensation — calibration auto-adjusts with RX_LNA_GAIN_DB
+  ✅  Watchdog safety — TX stops within ~1 s if Python is killed
+  ✅  Run 2+ without power cycle — FPGA reboot via Protocol 2 at startup
+
+
+RUN-2 FIX — ROOT CAUSE AND SOLUTION
+--------------------------------------
+Problem:
+  After a clean exit (or crash), run 2 produced pure noise (IQ ~ −97 dBFS).
+  The AD9866 DAC was completely silent despite EP6 streaming normally.
+
+Root cause:
+  The AD9866 SPI initialisation sequence (63 register writes: TX path enable,
+  DC calibration, IAMP enable, TX gain select, etc.) only runs at FPGA power-on
+  or FPGA reload from flash.  A plain STOP/START cycle leaves the AD9866 in
+  whatever state it was in — and some internal state from a previous run
+  left the TX DAC silent.
+
+Why earlier fix attempts failed:
+  Register 0x3a (hl2_reset_state — the FPGA reboot trigger) is NOT decoded
+  by usopenhpsdr1.v (the Protocol 1 EP2 C&C handler).  That module only
+  decodes addresses: 0x00, 0x09, 0x10, 0x17, 0x39.  Every EP2 packet sent
+  to address 0x3a was silently discarded, regardless of whether the HL2 was
+  in START or STOP state.
+
+Solution:
+  Register 0x3a is a Protocol 2 / HL2-extended command.  It is reached by
+  sending a 60-byte packet to port 1025 (Protocol 2 port):
+
+    bytes([0xEF, 0xFE, 0x05, 0x7F, 0x74, 0x00, 0x00, 0x00, 0x01]) + bytes(51)
+
+  Format: EF FE 05 7F  [reg_addr = 0x74 = 0x3a<<1]  [data = 0x00000001]  + pad
+  Source: hermeslite.py reference library.
+
+  Since the HL2 is in STOP state (run=0) when connect() runs, setting
+  hl2_reset_state=1 immediately fires the combinatorial reset:
+    assign hl2_reset = hl2_reset_state & ~run;   // 1 & ~0 = 1 instantly
+  The FPGA reloads from flash (~10-15 s), AD9866 SPI init re-runs, and the
+  next run starts from a clean state identical to a power cycle.
+
+  The reboot is triggered at the START of each session (connect() Phase 2),
+  not at shutdown.  This allows Phase 3 to confirm the reboot by timing the
+  HL2's response — a real FPGA reload takes > 7 s.
+
+Timing:
+  Phase 3 budget: 6 s quiet sleep + 60 × 0.5 s probes = 36 s maximum.
+  Typical observed reboot time: ~10-15 s.
+
+
+KNOWN LIMITATIONS
+------------------
+  1. Pure Signal internal tap not populated on this HL2 board.
+     RF3 external cable is the working loopback method.
+
+  2. Enabling/disabling PA mid-session can leave HL2 FPGA in bad state.
+     Power cycle the HL2 if RF3 signal disappears after PA mode changes.
+
+  3. GUI Capture button is a stub (prints to terminal only).
+  4. GUI Export button is a stub (not implemented).
+  5. Pre-driver runs warm at TX_AMPLITUDE = 1.0 continuous — keep short.
+  6. Each run adds ~12-15 s startup time for the FPGA reboot.  This is
+     unavoidable without populating the Pure Signal resistors (see below).
+
+
+HARDWARE CONFIGURATION
+-----------------------
+  HL2 IP         : 169.254.19.221 (static link-local)
+  HPSDR port     : 1024 (UDP)  /  Protocol 2 port: 1025
+  Band           : 40 m — LPF relay C2 = 0x88
+  RF1 → RF3      : 30 dB SMA attenuator
+  ANT            : SA with 30 dB attenuator for power measurement
+  NanoVNA SEESII : Bench signal source for RX chain verification
+  N2ADR board    : Not installed
+  Pure Signal    : Not populated on HL2 PCB
+
+
+HARDWARE PATH FORWARD
+----------------------
+  Populate two 0402 SMD resistors (~100–470 Ω) at the Pure Signal tap pads
+  on the HL2 PCB (between RF1 trace and LNA input).  This creates an internal
+  loopback — no external RF1→RF3 cable needed.  No software changes required;
+  the existing code will show the TX tone immediately.
+
+  Bonus: with the Pure Signal tap populated, the AD9866 SPI state between
+  runs is no longer critical (the signal feeds in before the ADC's gain stage,
+  not through the TX path), potentially eliminating the need for the FPGA
+  reboot on each startup.
