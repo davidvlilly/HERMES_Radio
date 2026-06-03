@@ -1,0 +1,28 @@
+Hermes Overview Notes
+( David Lilly 6/1/2026)
+
+1) Hermes was created 7 years ago (Steve Haynal) below is youtube overview from then;
+	https://www.youtube.com/watch?v=qlgq52IIUo8
+	
+2) Main Information web site;
+	http://hermeslite.com/
+	
+3) FYI: The Radioberry is a raspberry PI 'Hat' board, that intigrates with the raspberry PI
+   and is based on the Hermes Lite 2 design
+   
+4) Main Interface Protocol for Hermes Lite 2
+	https://github.com/softerhardware/Hermes-Lite2/wiki/Protocol
+	
+5) Github Source for ; Hardware/software/documentation
+	https://github.com/softerhardware/Hermes-Lite2/
+	
+	contains a low level HL2 python library (hermeslite.py) that might be a 
+	good foundation for new code development (depends on unsupported Lib: netifaces)
+		https://github.com/softerhardware/Hermes-Lite2/tree/master/software/hermeslite
+
+	The actual FPGA code is here;
+		https://github.com/softerhardware/Hermes-Lite2/blob/master/gateware/rtl/
+
+6) David Lilly wrote a good example program for basic transmit/recieve. 
+	Note this code requires pin ( signal pin 6, ground pin 3&4) to be connected to an 
+	SMA in order to provide loopback function
