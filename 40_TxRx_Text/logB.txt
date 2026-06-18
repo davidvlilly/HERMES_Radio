@@ -1,0 +1,2 @@
+    0.11s  --- DETECT start; searching (cycle=480000 half=2.5s; RX first half, TX second) ---
+   16.37s  LOCK  offset=-37Hz snr=63.9 code=0 anchor=487530

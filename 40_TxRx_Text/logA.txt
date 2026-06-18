@@ -1,0 +1,2 @@
+    0.21s  --- CALL start; anchor=0 cycle=480000 half=2.5s (TX first half, RX second) ---
+   10.68s  MISS  from=responder snr=13.5 (lowSNR) linked=False
