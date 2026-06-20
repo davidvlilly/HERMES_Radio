@@ -1,0 +1,50 @@
+Radio design notes
+6/16/2026  DLilly
+
+
+
+------------------------------------ ext_Radio_00
+HL2 Coherence Int.:   35ms 
+SSB Bandwidth:  3kHz
+Symbol Rate:    50  Symb. pre sec.  ( text only)
+bit Rate:       25 bps
+Symbol Time:    18ms  (good long time)
+Noise BW:       50Hz
+Modulation:     DBSK  (Differential Binary Phase Shift Keying)
+                      {no costas loop needed}
+Sync. Method:   20 symbol preamble at start of each burst
+Fwd Err Corr.   Rate 1/2 Repitition
+Burst Err. Correction:     No
+Pedistol Frequency: 2Khz ( or whatever  seems optimal)
+
+
+Notes:
+1) The radio has a call mode, and a detect mode.  a call is initiated by a radio in the call mode.
+   Once a call mode is initiated the frequency is not changed, and the caller sends either a text message or a active-signal burst every 5 seconds.
+   if there is data in the buffer a text is sent, if not a active signal burst with no text is sent.
+2) in the detect mode the radio will be able to move frequency to try and get best connection, and look for every 5th second bursts.
+   when a burst is deected, the radio user has an indication of connection, and if text is in the payload it is displayed.  A response message begins being sent 
+   starting 2.5 seconds after start of recieved message.  if text is in the buffer, it is sent, otherwise an active-signal burst is sent with no text payload.
+3) The users python gui tool has several pull down menus from the top of the window, such as 'File', 'Config'.  iniitally these have no functions.  
+   the major part of the gui window is a spectrum window at the top, and a text box below, that shows the outgoing, and incoming messages.  for active-signal bursts a period is printed to the screen, 
+   at the endo of any previos text characters,  A new line is added for any in/out messages with text.  outgoing active-signal bursts are marked with a '/' 
+   and incoming active-signals detected are marked with a '.'
+4) the sync symbols will be  any apropriate 20 symbol sequence for best detection.  the 21  to 24th symbol will be the burst code
+5) burst codes are; 0 - call mode continue,  1 - call mode end-call, 2)detect mode continue, 4) detect mode end-call
+6) symbols 25 to 32 are a 8 bit number describing the length of the message in ascii char.  Each ascii is 8 bits, max message  is 100-32 = 68 max chars
+   if the burst length is 0, it is a active-signal burst with no data.
+7) there will be 2 buttons at the top left of the gui; labeled as 'call', Detect'.   these activate the radio modes of call/detect.  
+   when an end call is recieved in either mode the connection is dropped, the mode is ended.  when in a call/detect mode it is indicated by red letters to the right of the 2 buttons.
+8) when in a call/or detect mode, and a messaage has been found, then at the expected time a burst will be detected the gui will print a '.' for new burst found, or '#' for 
+   missed message.  after 3 missed messages, an '<end connection>' is printed and the call/detect mode is ended.  also if an end-message code is found in the burst the mode is ended.
+   when sending an 'end-message' burst, 2 are alwas sent in case the 1st was missed.
+9) the spectrum will show the RF power  seen during th 2 second window will the sstem is gathering data.  the system should operate at a sample rate of about 10khz, so the user can seen
+   a bit of the spectrum above  & below the band they are using to communicate in, which we said is 3 khz.
+   
+10) Use te radio design in the Reference folder, for the detailes about how to control and interface with the Hermes radio.
+11) the user interface will also need to show when the radio is in transmit mode, or not with a red box or somthing.
+12) the gui will also need to have a LNA Gain text box, like the example interface, and an output power slider, like the example radio.
+13) the gui will someplace  show the PEP power, like the example radio design provided.
+14) I am using; Python 3.13.0
+
+
